@@ -46,7 +46,7 @@ module RamRom (
 	wren,
 	q);
 
-	input	[17:0]  address;
+	input	[16:0]  address;
 	input	[1:0]  byteena;
 	input	  clken;
 	input	  clock;
@@ -96,17 +96,17 @@ module RamRom (
 		altsyncram_component.byte_size = 8,
 		altsyncram_component.clock_enable_input_a = "NORMAL",
 		altsyncram_component.clock_enable_output_a = "NORMAL",
-		altsyncram_component.init_file = "./rtl/Roms.mif",
+		altsyncram_component.init_file = "./rtl/ram_zero.mif",
 		altsyncram_component.intended_device_family = "Cyclone V",
 		altsyncram_component.lpm_hint = "ENABLE_RUNTIME_MOD=NO",
 		altsyncram_component.lpm_type = "altsyncram",
-		altsyncram_component.numwords_a = 234624,
+		altsyncram_component.numwords_a = 131072,
 		altsyncram_component.operation_mode = "SINGLE_PORT",
 		altsyncram_component.outdata_aclr_a = "NONE",
 		altsyncram_component.outdata_reg_a = "CLOCK0",
 		altsyncram_component.power_up_uninitialized = "FALSE",
 		altsyncram_component.read_during_write_mode_port_a = "NEW_DATA_NO_NBE_READ",
-		altsyncram_component.widthad_a = 18,
+		altsyncram_component.widthad_a = 17,
 		altsyncram_component.width_a = 16,
 		altsyncram_component.width_byteena_a = 2;
 
@@ -135,8 +135,8 @@ endmodule
 // Retrieval info: PRIVATE: JTAG_ENABLED NUMERIC "0"
 // Retrieval info: PRIVATE: JTAG_ID STRING "NONE"
 // Retrieval info: PRIVATE: MAXIMUM_DEPTH NUMERIC "0"
-// Retrieval info: PRIVATE: MIFfilename STRING "./rtl/Roms.mif"
-// Retrieval info: PRIVATE: NUMWORDS_A NUMERIC "234624"
+// Retrieval info: PRIVATE: MIFfilename STRING "./rtl/ram_zero.mif"
+// Retrieval info: PRIVATE: NUMWORDS_A NUMERIC "65536"
 // Retrieval info: PRIVATE: RAM_BLOCK_TYPE NUMERIC "0"
 // Retrieval info: PRIVATE: READ_DURING_WRITE_MODE_PORT_A NUMERIC "3"
 // Retrieval info: PRIVATE: RegAddr NUMERIC "1"
@@ -146,27 +146,27 @@ endmodule
 // Retrieval info: PRIVATE: SingleClock NUMERIC "1"
 // Retrieval info: PRIVATE: UseDQRAM NUMERIC "1"
 // Retrieval info: PRIVATE: WRCONTROL_ACLR_A NUMERIC "0"
-// Retrieval info: PRIVATE: WidthAddr NUMERIC "18"
+// Retrieval info: PRIVATE: WidthAddr NUMERIC "16"
 // Retrieval info: PRIVATE: WidthData NUMERIC "16"
 // Retrieval info: PRIVATE: rden NUMERIC "1"
 // Retrieval info: LIBRARY: altera_mf altera_mf.altera_mf_components.all
 // Retrieval info: CONSTANT: BYTE_SIZE NUMERIC "8"
 // Retrieval info: CONSTANT: CLOCK_ENABLE_INPUT_A STRING "NORMAL"
 // Retrieval info: CONSTANT: CLOCK_ENABLE_OUTPUT_A STRING "NORMAL"
-// Retrieval info: CONSTANT: INIT_FILE STRING "./rtl/Roms.mif"
+// Retrieval info: CONSTANT: INIT_FILE STRING "./rtl/ram_zero.mif"
 // Retrieval info: CONSTANT: INTENDED_DEVICE_FAMILY STRING "Cyclone V"
 // Retrieval info: CONSTANT: LPM_HINT STRING "ENABLE_RUNTIME_MOD=NO"
 // Retrieval info: CONSTANT: LPM_TYPE STRING "altsyncram"
-// Retrieval info: CONSTANT: NUMWORDS_A NUMERIC "234624"
+// Retrieval info: CONSTANT: NUMWORDS_A NUMERIC "65536"
 // Retrieval info: CONSTANT: OPERATION_MODE STRING "SINGLE_PORT"
 // Retrieval info: CONSTANT: OUTDATA_ACLR_A STRING "NONE"
 // Retrieval info: CONSTANT: OUTDATA_REG_A STRING "CLOCK0"
 // Retrieval info: CONSTANT: POWER_UP_UNINITIALIZED STRING "FALSE"
 // Retrieval info: CONSTANT: READ_DURING_WRITE_MODE_PORT_A STRING "NEW_DATA_NO_NBE_READ"
-// Retrieval info: CONSTANT: WIDTHAD_A NUMERIC "18"
+// Retrieval info: CONSTANT: WIDTHAD_A NUMERIC "16"
 // Retrieval info: CONSTANT: WIDTH_A NUMERIC "16"
 // Retrieval info: CONSTANT: WIDTH_BYTEENA_A NUMERIC "2"
-// Retrieval info: USED_PORT: address 0 0 18 0 INPUT NODEFVAL "address[17..0]"
+// Retrieval info: USED_PORT: address 0 0 17 0 INPUT NODEFVAL "address[16..0]"
 // Retrieval info: USED_PORT: byteena 0 0 2 0 INPUT VCC "byteena[1..0]"
 // Retrieval info: USED_PORT: clken 0 0 0 0 INPUT VCC "clken"
 // Retrieval info: USED_PORT: clock 0 0 0 0 INPUT VCC "clock"
@@ -174,7 +174,7 @@ endmodule
 // Retrieval info: USED_PORT: q 0 0 16 0 OUTPUT NODEFVAL "q[15..0]"
 // Retrieval info: USED_PORT: rden 0 0 0 0 INPUT VCC "rden"
 // Retrieval info: USED_PORT: wren 0 0 0 0 INPUT NODEFVAL "wren"
-// Retrieval info: CONNECT: @address_a 0 0 18 0 address 0 0 18 0
+// Retrieval info: CONNECT: @address_a 0 0 17 0 address 0 0 17 0
 // Retrieval info: CONNECT: @byteena_a 0 0 2 0 byteena 0 0 2 0
 // Retrieval info: CONNECT: @clock0 0 0 0 0 clock 0 0 0 0
 // Retrieval info: CONNECT: @clocken0 0 0 0 0 clken 0 0 0 0

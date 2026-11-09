@@ -1,0 +1,8 @@
+-- 64K x 16 on-chip memory: RAM and ROM images, all zero until the ROM files are loaded
+DEPTH = 65536;
+WIDTH = 16;
+ADDRESS_RADIX = HEX;
+DATA_RADIX = HEX;
+CONTENT BEGIN
+[0000..FFFF] : 0000;
+END;

@@ -1,6 +1,10 @@
 --
 -- dart.vhd - Dual Asynchronous Receiver Transmitter
 --
+-- From REMEMOTECH by Andy Key (http://www.nyangau.org/rememotech), GNU General Public License version 2.
+-- Changed here: the buffer pointers wrap explicitly (mod 4) and every register is reset, so that a simulator sees what the
+-- hardware does (the registers power up as zero and a 2 bit pointer wraps by itself).
+--
 -- Useful approximation to a Z80 DART.
 -- No interrupts or modem control, always 8 bit characters.
 -- Upto 19200 baud is reasonable.
@@ -121,7 +125,22 @@ begin
         channels(c).framingerror <= '0';
         channels(c).parityerror  <= '0';
         channels(c).overrun      <= '0';
+        channels(c).txdata       <= (others => '1');
+        channels(c).rxclks       <= 0;
+        channels(c).rxrecv       <= 0;
+        channels(c).rxdata       <= (others => '0');
+        channels(c).rxbuf        <= (others => (others => '0'));
+        channels(c).clk_ch_last  <= '0';
+        channels(c).rx_history   <= "1111";
+        channels(c).rx_clean     <= '1';
+        channels(c).rx_prev      <= '1';
       end loop;
+      data_a <= (others => '0');
+      stat_a <= (others => '0');
+      data_b <= (others => '0');
+      stat_b <= (others => '0');
+      tx_a   <= '1';
+      tx_b   <= '1';
     elsif rising_edge(clk_cpu) then
 
       for c in 0 to 1 loop
@@ -186,11 +205,11 @@ begin
               -- we have 8 bits data, and should be on stop
               if channels(c).rx_clean = '0' then
                 channels(c).framingerror <= '1';
-              elsif channels(c).rxprod+1 = channels(c).rxcons then
+              elsif (channels(c).rxprod+1) mod 4 = channels(c).rxcons then
                 channels(c).overrun <= '1';
               else
                 channels(c).rxbuf(channels(c).rxprod) <= channels(c).rxdata(8 downto 1);
-                channels(c).rxprod <= channels(c).rxprod+1;
+                channels(c).rxprod <= (channels(c).rxprod+1) mod 4;
               end if;
               channels(c).rxrecv <= 0;
             elsif channels(c).rxrecv = 1 then
@@ -199,11 +218,11 @@ begin
                 channels(c).parityerror <= '1';
               elsif channels(c).rx_clean = '0' then
                 channels(c).framingerror <= '1';
-              elsif channels(c).rxprod+1 = channels(c).rxcons then
+              elsif (channels(c).rxprod+1) mod 4 = channels(c).rxcons then
                 channels(c).overrun <= '1';
               else
                 channels(c).rxbuf(channels(c).rxprod) <= channels(c).rxdata(7 downto 0);
-                channels(c).rxprod <= channels(c).rxprod+1;
+                channels(c).rxprod <= (channels(c).rxprod+1) mod 4;
               end if;
               channels(c).rxrecv <= 0;
             elsif channels(c).rxrecv /= 0 then
@@ -255,7 +274,7 @@ begin
           if c_not_d = '1' then
             channels(ch).regnum <= "000";
           elsif channels(ch).rxcons /= channels(ch).rxprod then
-            channels(ch).rxcons <= channels(ch).rxcons+1;
+            channels(ch).rxcons <= (channels(ch).rxcons+1) mod 4;
           end if;
         elsif wr_n = '0' then
           if c_not_d = '1' then

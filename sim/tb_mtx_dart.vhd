@@ -1,0 +1,236 @@
+-- tb_mtx_dart.vhd - the SDX in the whole machine: the real Z80 core, the real mtx.vhd (port decode, memory paging),
+-- the SDX ROM in ROM page 3, and sdx_fdc against a model of the HPS block interface. A small test program (dart_roms.hex,
+-- built by make_sdx_test.py) is the "OS ROM"; it reports what it sees to port E0h and this bench checks it.
+-- Compile with -2008 (external names).
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+use IEEE.NUMERIC_STD.ALL;
+use STD.TEXTIO.ALL;
+use IEEE.STD_LOGIC_TEXTIO.ALL;
+
+entity tb_mtx_dart is
+  generic (SLOT5 : integer := 0);
+end tb_mtx_dart;
+
+architecture sim of tb_mtx_dart is
+  component sdx_fdc
+    port
+      (
+      clk, clk_sys, reset : in std_logic;
+      cs : in std_logic; a : in std_logic_vector(2 downto 0); wr, rd : in std_logic;
+      din : in std_logic_vector(7 downto 0); dout : out std_logic_vector(7 downto 0);
+      d_mnt, d_ro, d_t40, d_ss : in std_logic_vector(1 downto 0);
+      d_blks0, d_blks1 : in std_logic_vector(22 downto 0);
+      sd_rd_o, sd_wr_o, sd_drv : out std_logic;
+      sd_lba : out std_logic_vector(31 downto 0);
+      sd_ack : in std_logic;
+      sd_buff_addr : in std_logic_vector(8 downto 0);
+      sd_buff_dout : in std_logic_vector(7 downto 0);
+      sd_buff_wr : in std_logic;
+      sd_buff_din : out std_logic_vector(7 downto 0)
+      );
+  end component;
+
+  signal CLOCK_50  : std_logic := '0';
+  signal Clk_Video : std_logic := '0';
+  signal RESET     : std_logic := '1';
+  signal rom_loading, rom_we : std_logic := '0';
+  signal rom_waddr : std_logic_vector(16 downto 0) := (others => '0');
+  signal rom_wdata : std_logic_vector(7 downto 0) := (others => '0');
+  signal clk_cpu_o, cpu_halt : std_logic;
+  signal vgar, vgag, vgab : std_logic_vector(3 downto 0);
+  signal hs, vs, hb, vb, tape_motor, tape_out, tape_out_we, sound_strobe : std_logic;
+  signal sound_out : std_logic_vector(15 downto 0);
+
+  signal fdc_cs, fdc_wr, fdc_rd : std_logic;
+  signal fdc_a : std_logic_vector(2 downto 0);
+  signal fdc_do, fdc_di : std_logic_vector(7 downto 0);
+
+  signal sd_rd_o, sd_wr_o, sd_drv, sd_ack : std_logic := '0';
+  signal sd_lba : std_logic_vector(31 downto 0);
+  signal sd_buff_addr : std_logic_vector(8 downto 0) := (others => '0');
+  signal sd_buff_dout : std_logic_vector(7 downto 0) := (others => '0');
+  signal sd_buff_wr : std_logic := '0';
+  signal sd_buff_din : std_logic_vector(7 downto 0);
+
+  -- the disc images
+  type img_t is array (0 to 655359) of std_logic_vector(7 downto 0);
+  function init_img(drv : integer) return img_t is
+    variable m : img_t;
+  begin
+    for i in 0 to 655359 loop
+      if drv = 0 then m(i) := std_logic_vector(to_unsigned((i * 7 + (i / 256) * 13) mod 256, 8));
+      else            m(i) := std_logic_vector(to_unsigned((i * 5 + (i / 512) * 3 + 1) mod 256, 8)); end if;
+    end loop;
+    return m;
+  end function;
+  shared variable img0 : img_t := init_img(0);
+  signal blk_reads, blk_writes : integer := 0;
+  function s5 return std_logic is begin if SLOT5 = 1 then return '1'; else return '0'; end if; end function;
+  signal slot5_s : std_logic := s5;
+  signal tx_a, tx_b : std_logic;                 -- each channel's transmit line is looped back to its receive line
+  type tm_t is array (0 to 15) of time;
+  signal edges_a : tm_t := (others => 0 ns);
+  signal n_edges : integer := 0;
+
+  -- what the program reports on port E0h
+  type rep_t is array (0 to 4095) of std_logic_vector(7 downto 0);
+  signal rep : rep_t := (others => (others => '0'));
+  signal nrep : integer := 0;
+  signal spy_a  : std_logic_vector(15 downto 0);
+  signal spy_do : std_logic_vector(7 downto 0);
+  signal spy_iorq, spy_wr : std_logic;
+begin
+  CLOCK_50  <= not CLOCK_50  after 10 ns;
+  Clk_Video <= not Clk_Video after 20 ns;
+
+  dut : entity work.mtx
+    port map (
+      CLOCK_50 => CLOCK_50, Clk_Video => Clk_Video, RESET => RESET, div_cpu => "101",
+      hw_pal => '0', frame_60 => '0',
+      key_ready => '0', key_stroke => '0', key_code => (others => '0'),
+      VGA_R => vgar, VGA_G => vgag, VGA_B => vgab, VGA_HS => hs, VGA_VS => vs, VGA_HB => hb, VGA_VB => vb,
+      sound_out => sound_out, sound_strobe => sound_strobe, joy1 => "00000", joy2 => "00000",
+      tape_in => '0', tape_out => tape_out, tape_out_we => tape_out_we, tape_motor => tape_motor,
+      clk_cpu_o => clk_cpu_o, cpu_halt => cpu_halt,
+      rom_loading => rom_loading, rom_we => rom_we, rom_waddr => rom_waddr, rom_wdata => rom_wdata,
+      mtx_loaded => '0', mtx_ready => '0', mtx_eof => '0', mtx_byte => x"00", mtx_pop_t => open, mtx_rewind_t => open,
+      mtx_nm_t => open, mtx_nm_d => open, mtx_nodata => '0',
+      sv_wr_t => open, sv_wr_d => open, sv_start_t => open, sv_flush_t => open, sv_busy => '0',
+      sdx_en => '1', sdx_slot5 => slot5_s, dart_rx_a => tx_a, dart_rx_b => tx_b, dart_tx_a => tx_a, dart_tx_b => tx_b,
+      fdc_cs => fdc_cs, fdc_a => fdc_a, fdc_wr => fdc_wr, fdc_rd => fdc_rd, fdc_do => fdc_do, fdc_di => fdc_di);
+
+  fdc : sdx_fdc
+    port map (
+      clk => clk_cpu_o, clk_sys => CLOCK_50, reset => RESET,
+      cs => fdc_cs, a => fdc_a, wr => fdc_wr, rd => fdc_rd, din => fdc_do, dout => fdc_di,
+      d_mnt => "01", d_ro => "00", d_t40 => "00", d_ss => "00",
+      d_blks0 => std_logic_vector(to_unsigned(1280, 23)), d_blks1 => std_logic_vector(to_unsigned(1280, 23)),
+      sd_rd_o => sd_rd_o, sd_wr_o => sd_wr_o, sd_drv => sd_drv, sd_lba => sd_lba, sd_ack => sd_ack,
+      sd_buff_addr => sd_buff_addr, sd_buff_dout => sd_buff_dout, sd_buff_wr => sd_buff_wr, sd_buff_din => sd_buff_din);
+
+  -- the HPS side of the SD block interface: a block is sent (read) or taken (write) byte by byte
+  hps : process
+    variable lba : integer;
+  begin
+    wait until rising_edge(CLOCK_50);
+    if sd_rd_o = '1' then
+      for k in 1 to 20 loop wait until rising_edge(CLOCK_50); end loop;
+      lba := to_integer(unsigned(sd_lba(19 downto 0)));
+      sd_ack <= '1';
+      for k in 0 to 511 loop
+        wait until rising_edge(CLOCK_50);
+        sd_buff_addr <= std_logic_vector(to_unsigned(k, 9));
+        sd_buff_dout <= img0(lba * 512 + k);
+        sd_buff_wr <= '1';
+        wait until rising_edge(CLOCK_50);
+        sd_buff_wr <= '0';
+      end loop;
+      for k in 1 to 3 loop wait until rising_edge(CLOCK_50); end loop;
+      sd_ack <= '0'; blk_reads <= blk_reads + 1;
+      for k in 1 to 3 loop wait until rising_edge(CLOCK_50); end loop;
+    elsif sd_wr_o = '1' then
+      for k in 1 to 20 loop wait until rising_edge(CLOCK_50); end loop;
+      lba := to_integer(unsigned(sd_lba(19 downto 0)));
+      sd_ack <= '1';
+      for k in 0 to 511 loop
+        sd_buff_addr <= std_logic_vector(to_unsigned(k, 9));
+        for j in 1 to 3 loop wait until rising_edge(CLOCK_50); end loop;
+        img0(lba * 512 + k) := sd_buff_din;
+      end loop;
+      for k in 1 to 3 loop wait until rising_edge(CLOCK_50); end loop;
+      sd_ack <= '0'; blk_writes <= blk_writes + 1;
+      for k in 1 to 3 loop wait until rising_edge(CLOCK_50); end loop;
+    end if;
+  end process;
+
+  -- watch the Z80's output cycles: port E0h is the program's report port
+  spy : process (clk_cpu_o)
+    alias a_s    is << signal .tb_mtx_dart.dut.A      : std_logic_vector(15 downto 0) >>;
+    alias do_s   is << signal .tb_mtx_dart.dut.DO     : std_logic_vector(7 downto 0) >>;
+    alias iorq_s is << signal .tb_mtx_dart.dut.IORQ_n : std_logic >>;
+    alias wr_s   is << signal .tb_mtx_dart.dut.WR_n   : std_logic >>;
+    variable prev : std_logic := '1';
+  begin
+    if rising_edge(clk_cpu_o) then
+      if iorq_s = '0' and wr_s = '0' and prev = '1' and a_s(7 downto 0) = x"E0" then
+        if nrep < 4096 then rep(nrep) <= do_s; end if;
+        nrep <= nrep + 1;
+      end if;
+      prev := wr_s or iorq_s;
+    end if;
+  end process;
+
+  -- the first edges of the first character on channel A: the bit times
+  edge_a : process (tx_a)
+  begin
+    if n_edges < 16 and now > 0 ns and (tx_a = '0' or tx_a = '1') and (tx_a'last_value = '0' or tx_a'last_value = '1') then   -- real edges only: not the U to 1 step at reset
+      edges_a(n_edges) <= now;
+      n_edges <= n_edges + 1;
+    end if;
+  end process;
+
+  main : process
+    file f : text open read_mode is "dart_roms.hex";
+    variable l : line;
+    variable b : std_logic_vector(7 downto 0);
+    variable i : integer := 0;
+    variable errors : integer := 0;
+    variable k : integer;
+    variable exp : integer;
+    variable pos : integer;
+    function img_at(i : integer) return integer is begin return (i * 7 + (i / 256) * 13) mod 256; end function;
+    function secoff(t, sd, s : integer) return integer is begin return ((2 * t + sd) * 16 + s - 1) * 256; end function;
+    procedure chk(cond : boolean; what : string) is
+    begin
+      if not cond then report "FAIL: " & what severity error; errors := errors + 1; end if;
+    end procedure;
+  begin
+    RESET <= '1';
+    wait for 1 us;
+    rom_loading <= '1';
+    while not endfile(f) loop
+      readline(f, l); hread(l, b);
+      wait until rising_edge(CLOCK_50);
+      rom_waddr <= std_logic_vector(to_unsigned(16#10000# + i, 17));
+      rom_wdata <= b; rom_we <= '1';
+      wait until rising_edge(CLOCK_50);
+      rom_we <= '0';
+      i := i + 1;
+    end loop;
+    wait until rising_edge(CLOCK_50);
+    rom_loading <= '0';
+    report "loaded " & integer'image(i) & " bytes";
+    wait for 1 us;
+    RESET <= '0';
+    -- the program ends with HALT after reporting A5h
+    wait until cpu_halt = '0' for 2 ms;
+    wait until cpu_halt = '1' for 200 ms;
+    wait for 20 us;
+    report "program ended after " & integer'image(nrep) & " reports; block reads " & integer'image(blk_reads) &
+           ", block writes " & integer'image(blk_writes);
+    chk(cpu_halt = '1', "the program did not reach HALT");
+
+    chk(nrep = 11, "number of reports: " & integer'image(nrep));
+    chk(rep(0) = x"55", "channel A: byte 0 echoed");
+    chk(rep(1) = x"A3", "channel A: byte 1 echoed");
+    chk(rep(2) = x"00", "channel A: byte 2 echoed");
+    chk(rep(3) = x"FF", "channel A: byte 3 echoed");
+    chk(rep(4) = x"7E", "channel A: byte 4 echoed");
+    chk(rep(5) = x"55", "channel B: byte 0 echoed");
+    chk(rep(6) = x"A3", "channel B: byte 1 echoed");
+    chk(rep(7) = x"00", "channel B: byte 2 echoed");
+    chk(rep(8) = x"FF", "channel B: byte 3 echoed");
+    chk(rep(9) = x"7E", "channel B: byte 4 echoed");
+    chk(rep(10) = x"A5", "end marker");
+    -- the bit time on channel A's transmit line: the first byte is 55h, so after the start bit every bit is the opposite of the last
+    -- and every edge is one bit time after the one before: the edges after the first.
+    for k in 2 to 8 loop
+      chk(edges_a(k) - edges_a(k - 1) > 51500 ns and edges_a(k) - edges_a(k - 1) < 52500 ns,
+          "bit time on channel A: " & time'image(edges_a(k) - edges_a(k - 1)) & ", want 52.0 us (4MHz/13/16 = 19230.8 baud)");
+    end loop;
+    report "bit time on channel A: " & time'image(edges_a(5) - edges_a(4)) & " (edges seen: " & integer'image(n_edges) & ")";
+    if errors = 0 then report "DART TEST PASSED"; else report "DART TEST FAILED, " & integer'image(errors) & " errors" severity failure; end if;
+    std.env.finish;
+  end process;
+end sim;

@@ -1,0 +1,154 @@
+MTX512 for MiSTer - changes in 20261108 (since 20261031 and the builds before it)
+
+NEW IN 20261108
+- The Memotech 80 column board is in the core, and with it CP/M on the SDX. The board is written from its schematic (redrawn by
+  Dave Stevenson) and the MTX-FDX Technical Manual, both from Primrosebank: ports 30h-33h (the screen memory through four
+  latches) and 38h-39h (the 6845 CRTC), the two 2K screen RAMs (ASCII and attribute), and a 640 x 480 picture made from them with
+  the board's character ROM (colour attributes, blink, cursor, graphics characters). The character ROM is yours: 8192 bytes; the
+  board is fitted when it has arrived. GUIDE.txt 6.5.
+- boot3.rom can now hold three 8KB parts: the SDX ROM, the 80 column character ROM, and the SDX CP/M bootstrap PROM (24576 bytes;
+  tools/make_boot3_rom.py makes it from your files). The first goes in the SDX ROM slot as before, the second into the character
+  ROM, the third into a page of its own: the on-chip ROM memory is now 256KB (it was 128KB). Nothing of boot3.rom beyond 24KB is
+  used (before, a boot3.rom longer than 8KB ran on into ROM 2). The OSD entry "CP/M: Load 80 col char ROM" loads the character ROM from
+  an 8192 byte file without a new boot3.rom.
+- New OSD entry "CP/M: Disc ROM": SDX BASIC or CP/M. It chooses which of the two ROMs answers in the SDX ROM's slot (ROM 3, or ROM 5);
+  press OSD -> Reset after changing it (the machine does not restart by itself). With CP/M the PROM starts CP/M from the disc in SDX Disc A by itself (no BASIC prompt);
+  CP/M discs load with the PROM alone, it has its own disc handler. The SDX controller is the same for both.
+- New OSD entry "CP/M: Video output": Auto (the VDP picture until the 80 column board has been set up, then the 80 column picture), VDP,
+  or 80 column. The 80 column picture is 640 x 480 at 50 or 60Hz as "Video Hz" says, every scan line of the board shown twice;
+  the board's own 15.6kHz timing is not made. Not built: the monochrome output, the bell, the light pen, and the FDX controller
+  (ports 40h-47h, DMA), which CP/M on the SDX does not need.
+- CP/M, tested in logic simulation of the whole core with the real OS, the real PROM, the character ROM and a 640K system disc:
+  the BIOS loads, the board shows "MTX Bootstrap Prom", "Ram Test - OK", "Boot B07", "MTX 59K Memotech Bios: 03-Apr-84" and the A>
+  prompt, read back from the board's video output. Typing was checked in the software model only; CP/M programs and a real MiSTer
+  have not been tried.
+- Keyboard: Shift+; (the PC colon) is now the MTX colon key, so a colon can be typed (B: in CP/M); it typed nothing before (the # key
+  was the only colon). In CP/M (Disc ROM = CP/M) BackSpace is the plain MTX BS key: the BS then DEL pair that BASIC wants erased two
+  characters at the CP/M prompt and left the next key unreliable. (In FDXB, Disc BASIC, BS only moves the cursor left: press BackSpace and then the
+  Delete key to erase.) In CP/M mode the shift and control keys are also held steady while another key is down, so that letting go of Shift
+  before the letter does not turn S into s and type a second character. New OSD entry "Joysticks": On (default) or Off, to disconnect
+  the two joystick ports from the keyboard matrix, for finding out whether a joystick or a USB device that looks like one is pressing keys. The shift is hidden from the CPU for the colon, 20 ms either side of the colon
+  key, because the CP/M BIOS reads the keyboard row by row and could otherwise see Shift + colon and type *.
+- The core uses about 29 percent of the FPGA's logic and 63 percent of its block RAM (the bigger ROM memory); timing is met.
+
+MTX512 for MiSTer - EARLIER: changes in 20261031 (since 20261030, 20261028 and 20261025 before that)
+
+NEW IN 20261031
+- The stock CPU clock is now exactly 4.000MHz on average (the MTX crystal is 4MHz), not 4.166MHz, and the CTC timer and
+  counter inputs are exact too. Before, every sound was 4% sharp and anything timed by the CTC was 4% off. The menu says
+  4MHz (stock). See GUIDE.txt 6.1.
+- The sound chip was checked against the SN76489A data sheet: the noise shift rates are N/512, N/1024 and N/2048 (they were
+  twice too fast), and a data byte after a volume or noise byte goes to that register. Tone pitch and volume steps were
+  right. Tested in logic simulation against the data sheet's figures.
+- USER FORMAT and USER SYSCOPY make a new system disc (GUIDE.txt 5.3 has the steps). Tested in the software MTX with the real
+  SDX ROM for 640K and 320K discs, and the controller code in logic simulation with the formatter's own data stream.
+- Menu: "Type ROM 3 now (disc changed)" types ROM 3 and RET when BASIC is at its prompt, and the option "Type ROM 3 when a disc
+  is mounted" (Off by default) does it when a disc is mounted. GUIDE.txt 5.6.
+- RAM: menu entry 64K (stock) or 320K (SDRAM), the 256KB of two RAM expansion boards, paged as on the real MTX (GUIDE.txt
+  6.2). The 256KB is kept in the MiSTer's SDRAM module, not in the FPGA, so the 320K setting needs that module; the core
+  uses 38 percent of the FPGA's block RAM instead of 84. The Z80 is held for wait states only when the SDRAM is not ready
+  (never in normal use at 4MHz, on every expansion RAM access at the turbo speeds). Tested in logic simulation against a
+  model of the chip.
+- ROM 2 (sub-pages 0 to 3) and a boot.rom of up to 64KB; tools/make_boot_rom.py builds one from your ROMs (GUIDE.txt 6.3). The
+  SDX card is switched on only by a ROM that starts with the MTX ROM signature, so filler in its place is harmless; a boot.rom
+  larger than 128KB can no longer wrap round onto the OS ROM.
+- The keyboard section of GUIDE.txt now lists every editing key on a PC keyboard: Break is Num * (or Pause, or Ctrl+Pause), Insert
+  is a toggle that stays on until pressed again, and the rest of the editor keypad (PAGE, EOL, TAB, DEL, HOME, CLS, arrows) is
+  on the number pad one row up from the MTX's own.
+- Checked with the real OS in logic simulation: HiSoft Pascal 1.1 and 1.4 start and show their banner (GUIDE.txt 6.3), and the
+  memory test PRINT PEEK (64122) from the Memotech Memory Extensions booklet shows 1 at 64K and 9 at 320K (GUIDE.txt 6.2).
+- Keyboard: the Pause key now works as BREAK (the core was matching the wrong code for it, and the MiSTer sends Pause as a press
+  with no release, which is now held for a tenth of a second); Scroll Lock is BREAK too. Num * and Ctrl+Pause as before.
+- The OSD menu is in groups with plain labels: tape, then the SDX items (SDX Disc A, SDX Disc B, SDX: Type ROM 3 now, SDX: Type
+  ROM 3 when a disc is mounted, SDX: ROM slot), then RAM and Load ROM 2, then the serial port. Nothing changed in what they do.
+- CTC: a counter channel loads its time constant as it is written (as the real chip appears to: MEMU's author compared), so a counter
+  set to 1 interrupts at the first input pulse and not after 256 of them, and a software reset of a channel clears its pending
+  interrupt. Before, a program that counted the video chip's frame interrupt with a count of 1 waited 256 frames, about five seconds,
+  for each interrupt.
+- OSD -> Load ROM 2: a ROM 2 file (.rom or .bin, up to 32KB, for instance HiSoft Pascal as one 16KB file of its two chips) is
+  loaded into the ROM 2 sub-pages from the menu, without rebuilding boot.rom; then type ROM 2 (GUIDE.txt 6.3).
+- A serial port: the Z80 DART of the Communications board on ports 0C-0F, with the menu entry "Serial (DART) on the UART"
+  (Off, channel A or channel B). Tested in logic simulation (loopback, 19230.8 baud). GUIDE.txt 6.4.
+- The tape player module was reorganised inside; WAV and .mtx playback were tested again and are unchanged.
+- GUIDE.txt is a full step-by-step guide to SAVE, VERIFY and the SDX, with the MD5 checksums of the ROMs that were
+  used, a ready-made blank SDX disc and a tool that makes more (see FILES at the end).
+
+NEW IN 20261030
+- The SDX disc system. Put the SDX ROM on the card as games/MTX512/boot3.rom and the core has the SDX FDC 05
+  card: a WD1793 floppy controller on ports 10h-14h, the SDX ROM in ROM page 3 (OSD can move it to page 5), and
+  discs that are image files mounted from the OSD (Mount SDX Disc A / B; SDX BASIC itself uses drive A only). The port decoding, the
+  control latch and status bits and the ROM page are taken from the card's schematic and the SDX manual. The real
+  SDX ROM was run against a model of this controller: directory, load, save, run, erase and stat all work on a
+  genuine SDX system disc, and the program saved comes back after a reset. Sector writes go straight to the image
+  file on the SD card. See GUIDE.txt. Without boot3.rom nothing changes. The FDX and the silicon disc are not
+  included. (USER FORMAT and SYSCOPY: see NEW IN 20261031.)
+- SAVE works. It writes the tape into a .mtx file on the SD card. OSD: Insert Tape (BLANK.mtx), Mount Save
+  Tape (BLANK.mtx), then SAVE "NAME" in BASIC. BLANK.mtx comes with the core: 65536 bytes, and only a file of
+  exactly that size is accepted for saving, so a game tape cannot be written over by mistake. The saved file
+  is an ordinary .mtx (the real MEMU loads and verifies it). See README.txt.
+- VERIFY compares the tape with memory byte by byte and gives "Mismatch" at the first difference. It used to
+  accept anything.
+- LOAD "NAME" and VERIFY "NAME" with a name that is not on the tape give "No data" at once. Before, the OS
+  kept asking for headers until BREAK. Names are matched exactly, ignoring case; "" takes any tape.
+- A new LOAD starts the tape again when the next byte is not the FF that starts a header. A saved tape can
+  be loaded as many times as you like without ejecting it.
+- Keyboard: PC Backspace now removes the character to the left (the core sends the MTX BS key, then the DEL
+  key; on the MTX, BS only moves the cursor left and DEL erases the character under the cursor). Shift+Backspace
+  is the plain MTX BS key. The PC Delete key is the MTX DEL key.
+- The LED also lights while a SAVE is written to the card.
+
+IN 20261028
+- .mtx tapes: past the end of the file the tape stream reports a byte ready and returns FF. Many .mtx files
+  stop a byte or a few bytes short of what the OS reads (the end marker, which is FF in the files that have
+  it); these used to stop at "Found: name" with nothing happening, and now load.
+
+HOW IT IS DONE (for the source)
+- rtl/mtx_overlay.vhd (generated by sim/make_overlay.py) now covers 0A60..0B05: INOUT and the tape bit routines
+  just below it, which nothing else in the OS calls. The ROM itself is never changed; the overlay only answers
+  reads while a .mtx is inserted and the OS ROM is selected.
+- New I/O ports for the overlay: 8D (the name asked for, 15 characters, and the verdict), 8E (the tape byte,
+  and SAVE bytes written), 8F (bit 0 rewind, bit 1 a tape is being saved, bit 2 write out; read: bit 0 byte
+  ready, bit 1 start the tape again, bit 2 a block is being written).
+- rtl/sdx_fdc.sv is the SDX controller (CPU clock side) with a block mover on the 50MHz clock and a dual clock
+  buffer RAM; memory_map.vhd has the SDX ROM page; MTX512.sv has three virtual drives (save tape, disc A, disc B).
+- rtl/mtx_save.sv writes 512 byte blocks to the image mounted with Mount Save Tape (hps_io SD block interface).
+  At the start of a SAVE it clears the 128 blocks of the image, at the end of each chunk it pads and writes the
+  last part block.
+- rtl/mtx_tape.sv compares the names; rtl/mtx_kbd.vhd has the BackSpace sequence (60 ms BS, 40 ms gap, 60 ms DEL).
+
+TESTING
+- ModelSim: the save module against a model of the HPS block protocol (erase, full and part blocks, a shorter
+  second tape, wrong sizes, read only, unmounted); the name check and end flag in the tape module; the overlay
+  on the Z80 core (LOAD, VERIFY, rewind, FF fill, SAVE with the 20 byte header trimmed to 18); the keyboard
+  sequence timing.
+- A software MTX running the real ROMs and the real overlay bytes: write a BASIC program, SAVE it, reset, LOAD it,
+  LIST and RUN it, VERIFY it (matching and changed), wrong names; 148 game and utility tapes load.
+- The SDX controller in ModelSim against a model of the HPS block interface (restore, seek, step, read and
+  write sector with the read-modify-write of half a block, several sectors, both sides, single density, read
+  address, a full format track, the error cases, drive B), and the real SDX ROM in the software MTX.
+- The SDX in the whole machine in ModelSim: the real Z80 core and the real mtx.vhd (port decode, memory paging),
+  the SDX ROM in ROM 3 (and again in ROM 5), the controller and an SD model. A test program pages in the ROMs,
+  checks ROM 5 is open bus when the card is in ROM 3, restores, seeks, reads a sector, writes one and reads it
+  back, and checks its neighbour in the same block and the image on the "card".
+- Not yet tested on a MiSTer: SAVE to the card (the SD mount), the SDX discs, the key timing, the new OSD entries.
+
+NOTE FOR BUILDING
+- Quartus 17.0.2 Lite crashes (access violations in its synthesis and fitter code) on large combinational cones in
+  the SDX controller. The sector address logic in rtl/sdx_fdc.sv is therefore worked out in registered stages and
+  the controller uses macros and plain wires, not tasks and blocking assignments. If a build still crashes,
+  clear the db and incremental_db folders and run it again; with PRE_MAPPING_RESYNTHESIS set to OFF the same
+  design also builds.
+
+FILES
+- _Computer/MTX512_20261031_menu.rbf replaces MTX512_20261030_menu.rbf.
+- GUIDE.txt is new: SAVE, VERIFY, the keyboard and the SDX, step by step, with the MD5 checksums of the ROMs used
+  (the SDX ROM comes in two builds, type 07 and type 03).
+- games/MTX512/BLANK_SDX.mfl is a ready-made blank 640K SDX disc (see DISCS_README.txt).
+- tools/make_blank_disc.py makes a blank, usable SDX disc image from a system disc image you already have (the
+  SDX loads its disc operating system from the system sectors of the disc at ROM 3, so a bare image of E5 bytes
+  gives DISC ERROR). Needs Python 3. Tested with a 640K disc: USER DIR, STAT, SAVE and a reload after a reset.
+- Tested in the software model since the guide was first written: USER ERA "*.*" (asks All files?), USER COPY
+  through the Insert Source / Destination Disc prompts on one drive, drive letters (B: in front of a name does
+  not select drive B in SDX BASIC).
+- games/MTX512/BLANK.mtx is the blank tape for SAVE. The Memotech ROMs are still supplied by you in
+  games/MTX512/ (see README.txt).

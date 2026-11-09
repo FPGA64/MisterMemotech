@@ -1,0 +1,648 @@
+MTX512 for MiSTer - USER GUIDE
+==============================
+
+CONTENTS
+  1. What goes on the SD card, and how to check your ROMs (MD5)
+  2. Tapes: LOAD, VERIFY and "No data"
+  3. SAVE to a tape file, step by step
+  4. VERIFY a saved tape, step by step
+  5. The SDX disc system
+       5.1  What you need
+       5.2  First start, step by step
+       5.3  Making blank discs
+       5.4  Everyday disc commands
+       5.5  Copying files between discs (one drive)
+       5.6  Changing discs, write protect, errors
+       5.7  Moving a program from tape to disc
+       5.8  What is not included
+  6. The clock, memory, ROM 2, the serial port and the 80 column board
+       6.1  The clock and the sound
+       6.2  RAM: 64K or 320K
+       6.3  ROM 2 and a longer boot.rom
+       6.4  The serial port (the Communications board)
+       6.5  The 80 column board and CP/M
+       6.6  Using CP/M, step by step (the A> prompt, FDXB Disc BASIC, which screen, keyboard)
+  7. The keyboard
+  8. If something does not work
+
+Everything here was tried in a software model of the MTX and the SDX card that runs the real ROMs (and in
+logic simulation of the core).
+
+------------------------------------------------------------------------------------------------
+1. WHAT GOES ON THE SD CARD, AND HOW TO CHECK YOUR ROMS (MD5)
+
+  _Computer/MTX512_20261108_menu.rbf    the core
+  games/MTX512/boot.rom                 OS ROM,    8192 bytes   (you supply the Memotech ROMs)
+  games/MTX512/boot1.rom                BASIC ROM, 8192 bytes
+  games/MTX512/boot2.rom                ASSEM ROM, 8192 bytes   (optional)
+  games/MTX512/boot3.rom                SDX ROM,   8192 bytes   (optional: switches the SDX disc system on)
+  games/MTX512/BLANK.mtx                a blank tape for SAVE, 65536 bytes (supplied)
+
+Tapes (.mtx, .wav) and SDX discs (.mfl or .dsk) can be anywhere under games/MTX512/; the OSD file browser finds
+them. The core does not contain any Memotech ROM. Until the OS and BASIC ROMs have been read at start-up the
+screen stays blank. If boot3.rom is missing the core is a plain MTX500/512.
+
+The ROMs that were used for all the testing, with their MD5 checksums (every file is 8192 bytes):
+
+  File on the SD card   MD5                                What it is
+  -------------------   --------------------------------   ----------------------------------------------
+  boot.rom              69573163aba772d60423ceb90832ce95   MTX OS ROM (MEMU's os.rom)
+  boot1.rom             7199b5024ed705a3af3e9e06fd069137   MTX BASIC ROM (MEMU's basic.rom)
+  boot2.rom             14ed3cb6e494d01aa320d9d2f1d87ce0   ASSEM ROM (MEMU's assem.rom)
+  boot3.rom             fb2b78f71c5e7cc42da829703f746ab4   SDX ROM, type 07 build (MEMU's sdx-type07.rom)
+  boot3.rom (instead)   7626a95c29b3f1637b7bbacd67df3b0a   SDX ROM, type 03 build (MEMU's sdx.rom and
+                                                           sdx-type03.rom are this same file)
+
+There is not one SDX ROM but two builds of it. They differ in 13 bytes (the default disc type code, 3 or 7, and
+a few bytes that go with it). Use ONE of them as boot3.rom. Both were tried against a 640K (type 07) system
+disc and both list it; if a disc does not behave with one, try the other.
+
+To check a file:   Windows:  certutil -hashfile boot.rom MD5          Linux/Mac:  md5sum boot.rom
+A file with a different MD5 may still work (there are other ROM versions), but then you are on your own.
+
+------------------------------------------------------------------------------------------------
+2. TAPES: LOAD, VERIFY AND "No data"
+
+  OSD -> Insert Tape -> pick a .mtx (instant) or a .wav (plays in real time), then in BASIC:
+
+      LOAD ""            loads whatever tape is in
+      LOAD "NAME"        loads the tape called NAME
+      VERIFY "NAME"      compares the tape with what is in memory
+
+  LOAD "NAME" with a name that is not on the tape stops at once with "No data". The tape then starts again from
+  the top, so the next LOAD works. Names must match exactly (upper and lower case do not matter); LOAD "" takes
+  any tape.
+
+  A .mtx file that stops a byte or so short of what the OS reads (a missing end marker, common in older
+  collections) loads normally: past the end of the file the core supplies FF bytes. A game that loads a second
+  tape file by name, or a truncated file, will not run properly from its .mtx: use its .wav instead.
+
+------------------------------------------------------------------------------------------------
+3. SAVE TO A TAPE FILE, STEP BY STEP
+
+  SAVE writes the program into a .mtx file on the SD card. The file is an ordinary tape: you load it back with
+  Insert Tape, and other MTX emulators read it.
+
+  Once per program you want to keep:
+
+    1. Copy BLANK.mtx on the SD card (or on your PC) to a new name, for example MYPROG.mtx.
+       It must stay exactly 65536 bytes. Any other size is ignored on purpose, so that a game tape mounted by
+       mistake can never be written over.
+
+  Each time you SAVE:
+
+    2. OSD -> Insert Tape -> pick any .mtx. (BLANK.mtx is fine. This is what makes the core handle the tape
+       calls; the file itself is not changed.)
+    3. OSD -> Mount Save Tape -> pick MYPROG.mtx.
+    4. Type or load your program in BASIC.
+    5. Type   SAVE "NAME"      (up to 15 characters)  and press RET.
+       The LED is lit while the file is written to the card. Wait until it goes out. Do not take the card out
+       while it is lit.
+    6. The program is now in MYPROG.mtx.
+
+  Things to know:
+    - SAVE starts at the top of the file and clears the rest, so one file holds one tape. Use a new copy of
+      BLANK.mtx for each program.
+    - If no save tape is mounted, or it is the wrong size, SAVE does nothing.
+    - To load it again: OSD -> Insert Tape -> MYPROG.mtx, then   LOAD "NAME"   (as often as you like).
+
+------------------------------------------------------------------------------------------------
+4. VERIFY A SAVED TAPE, STEP BY STEP
+
+  VERIFY compares the tape with the program in memory, byte by byte. It stops with "Mismatch" at the first byte
+  that differs, and says nothing more than Ready when everything is the same.
+
+  To check a SAVE you have just made:
+
+    1. Make the SAVE as in section 3. The program stays in memory.
+    2. OSD -> Insert Tape -> pick the file you saved into (MYPROG.mtx).
+    3. Type   RUN   and press RET. (Why: VERIFY also compares the OS system variables, and they change as you
+       type commands. RUN puts them back the way the MTX ROM expects. If your program does not stop by itself,
+       press BREAK.)
+    4. Type   VERIFY "NAME"   and press RET.
+       Ready with no message = the tape holds exactly what is in memory.
+       Mismatch = something differs (most often because commands were typed after the program was loaded or
+       saved and step 3 was skipped; do step 3 and try again).
+
+  To check a tape from a collection against a program you have loaded from it:  LOAD "NAME", then RUN, then
+  VERIFY "NAME" with the same tape still inserted.
+
+  VERIFY "NAME" with a name that is not on the tape gives "No data", as LOAD does.
+
+------------------------------------------------------------------------------------------------
+5. THE SDX DISC SYSTEM
+
+5.1 What you need
+
+  The Memotech SDX was a floppy disc system: a controller card (the SDX FDC 05, with a Western Digital 1793
+  disc controller chip and an 8K ROM) and a drive. It adds disc commands to BASIC, all starting with USER. A
+  later version of the card could also carry a 512K RAM (silicon) disc; that is not in this core.
+
+    - boot3.rom on the SD card: the SDX ROM (see the MD5 table in section 1). Without it the SDX is switched off.
+    - A disc image of a SYSTEM disc. An image is a plain dump of the disc, one sector after the other, in a file
+      ending .mfl or .dsk (files named .mfloppy are exactly this: rename them to .mfl so that the OSD lists
+      them). The MEMU package has system disc images.
+      Every disc must carry the system: when you type ROM 3 the SDX loads its disc operating system (the CP/M
+      BDOS and BIOS) from the first sectors of the disc in the drive. A disc without it gives DISC ERROR, even if
+      it is blank. That is why a blank disc has to be made from a system disc (section 5.3).
+
+  The drive type follows the size of the image. The core sets the card's configuration switches to match:
+        655360 bytes   80 tracks, double sided    Memotech disc type 07  (1 MB, 640K formatted)
+        327680 bytes   40 tracks, double sided    type 03                (500K, 320K formatted)
+        163840 bytes   40 tracks, single sided    type 02                (250K)
+         81920 bytes   40 tracks, single sided, single density           type 00 (100K)
+  Any other size is treated as an 80 track double sided disc. Only 640K (type 07) discs were available for the
+  tests here.
+
+5.2 First start, step by step
+
+    1. Put the core, boot.rom, boot1.rom and boot3.rom on the SD card (section 1), and a system disc image
+       (.mfl) under games/MTX512/. Switch on the MiSTer and start the core.
+    2. OSD -> SDX Disc A -> pick the disc image. (The SDX BASIC works with one disc, the one in drive A.
+       There is also a Disc B entry; BASIC does not use it, see 5.8.)
+    3. Leave OSD -> SDX: ROM slot at ROM 3. That is where the SDX FDC 05 card puts the ROM.
+    4. In BASIC type   ROM 3   and press RET.
+       The screen shows a full stop and Ready. (The command and the OSD ROM slot must agree: ROM 3 with ROM 3,
+       ROM 5 with ROM 5. If they do not, the screen fills with junk: press Reset.)
+    5. Type   USER DIR   and press RET. The files on the disc are listed. A blank disc says "No File".
+    6. Try a program: type
+           10 PRINT "HELLO"
+           USER SAVE "HELLO.BAS"
+           USER DIR
+       HELLO.BAS is now in the list. The LED lit while the card was written to.
+    7. To get it back:  USER LOAD "HELLO.BAS"  then  RUN.  (USER LOAD clears the program in memory first.)
+
+5.3 Making blank discs
+
+  Ready-made blank discs are in this package: games/MTX512/BLANK_SDX.mfl and BLANK_SDX_2.mfl to BLANK_SDX_6.mfl
+  (640K each, system sectors and no files). Mount one as Disc A (section 5.2) and use it. Keep BLANK_SDX.mfl itself
+  untouched as the master.
+
+  More blank discs, without a PC: a MiSTer core can only use disc files that already exist on the card, it cannot make a
+  new file, so a new disc has to be a copy of an existing one. This package has a script for that:
+  Scripts/MTX512_new_disc.sh. Copy the Scripts folder to the SD card (so that it is /media/fat/Scripts/MTX512_new_disc.sh
+  on the MiSTer), then on the MiSTer's main menu (leave the core with the Menu button) choose Scripts and MTX512_new_disc.
+  It makes DISC01.mfl, DISC02.mfl, ... in games/MTX512 as copies of BLANK_SDX.mfl, one more each time, and prints the name.
+  Then load the core, OSD -> SDX Disc A -> the new file.
+
+  To make discs of your own from a system disc image (for example one from the MEMU package) you need Python 3
+  on your PC.
+
+    1. Open a command window in the folder that holds tools/make_blank_disc.py (it is in this package).
+    2. Run:    python make_blank_disc.py SYSTEMDISC.mfl MYDISC.mfl
+       It reads the system disc (never changes it) and writes MYDISC.mfl: the same size, the system sectors
+       copied, everything else empty. It prints what it wrote.
+    3. Copy MYDISC.mfl to the SD card under games/MTX512/ and mount it as Disc A (section 5.2).
+
+  In testing, a disc made this way gave "No File" for USER DIR, 586k free, took USER SAVE, and the saved program
+  came back after a reset.
+
+  Without Python: copy a system disc image to a new name, mount the copy and in BASIC type
+        ROM 3
+        USER ERA "*.*"
+  and answer Y to "All files?". That empties the disc (tested: USER DIR then says "No File"). Afterwards the BDOS
+  treats the disc as read only; type ROM 3 again before you save to it. In testing this disc showed 540k
+  free, against 586k for a disc made with the script.
+
+  USER FORMAT and USER SYSCOPY work as well, and make a new system disc without any other disc to copy:
+    1. Make an empty file of the size of the disc you want and put it on the card (655360 bytes for the 640K disc, 327680 for
+       the 320K one). On Windows:   fsutil file createnew NEW.mfl 655360
+    2. Mount a system disc as Disc A and type ROM 3, then USER FORMAT. It says "Ready to format. Insert disc and type RET to go
+       ahead or any other key to abandon."
+    3. OSD -> SDX Disc A -> NEW.mfl (leave "SDX: Type ROM 3 when a disc is mounted" Off), then press RET. "WAIT..FORMATTING"
+       and, after a while, "End of formatting".
+    4. Mount the system disc again and type ROM 3, then USER SYSCOPY. At "Insert Source Disc.......Press a key" check that
+       the system disc is mounted and press a key; at "Insert Destination Disc..Press a key" mount NEW.mfl and press a key;
+       at "RET to continue, any other key to quit" press any other key.
+    5. Mount NEW.mfl as Disc A and type ROM 3. USER DIR says "No File", and the disc takes USER SAVE.
+  In the software MTX with the real SDX ROM this was done for both disc types, and the new disc had exactly the system area
+  of the system disc and took USER SAVE. The controller code (rtl/sdx_fdc.sv) was run in logic simulation with the formatter's
+  own data stream (Write Track, Read Address, Read Sector) on a 640K and on a 320K disc. It takes a while on a real card:
+  every sector is a block read and a block write.
+
+5.4 Everyday disc commands
+
+  Always after ROM 3 (see 5.2). File names are CP/M names: up to 8 letters, a full stop and up to 3 letters.
+  "*" stands for any text and "?" for any one character.
+
+      USER DIR                     list the files        USER DIR "*.BAS"     only the .BAS files
+      USER STAT                    free space            USER STAT "A.BAS"    size of one file
+      USER LOAD "PROG.BAS"         load a BASIC program from the disc
+      USER SAVE "PROG.BAS"         save the BASIC program in memory (an existing file of that name is replaced)
+      USER RUN "GAME.RUN"          load and run a machine code .RUN file (the file starts with four bytes: the
+                                   load address and the length). A BASIC program saved with USER SAVE cannot
+                                   be started this way: use USER LOAD and RUN.
+      USER WRITE "F.BIN",start,length   write a block of memory to a file (numbers in decimal)
+      USER READ "F.BIN",start           read a whole file into memory at start
+      USER ERA "OLD.BAS"           erase a file          USER ERA "*.*"      erase all (asks "All files?")
+      USER REN "NEW.BAS"="OLD.BAS" rename a file
+      USER TYPE "NOTES.TXT"        show a text file (BREAK stops it, PAGE pauses it)
+      USER COPY "NEW"="OLD"        copy a file (see 5.5)
+      USER OPEN, USER CLOSE, USER INPUT#, USER PRINT#, USER EOF, USER REC   file input and output for BASIC
+                                   programs (see the Memotech SDX operator's manual)
+
+  In a BASIC program, put each USER command on a line of its own. In testing, only the first USER command on a
+  line ran and the rest of that line (after a colon) was skipped without any message.
+
+  Every sector the ROM writes goes straight through to the image file on the SD card (the core reads the 512
+  byte block that holds the sector, changes the sector and writes the block back). The LED is lit while the
+  card is being used. Do not take the card out or switch off while it is lit.
+
+5.5 Copying files between discs (one drive)
+
+  There is one drive, so USER COPY asks you to swap discs. In testing:
+
+    1. Mount the disc with the file as Disc A and type  ROM 3  if you have just changed it.
+    2. Type   USER COPY "NEW.BAS"="OLD.BAS"   and press RET.
+    3. The screen says   Insert Source Disc.......Press a key
+       Mount the source disc (OSD -> SDX Disc A), then press any key.
+    4. The screen says   Insert Destination Disc..Press a key
+       OSD -> SDX Disc A -> the destination disc, then press any key.
+    5. When it says Ready the file is copied. Large files need the two discs swapped more than once; the
+       screen asks each time.
+    6. Mount the destination disc and type ROM 3 to see the file in its list.
+
+5.6 Changing discs, write protect, errors
+
+  - After you mount a different image, the SDX still holds the old disc's directory, and the disc is read only until the
+    system is started again, which the BASIC command ROM 3 does. Type ROM 3 (the manual says to do that after changing a
+    disc), or use the menu entry "SDX: Type ROM 3 now (disc changed)": the core types ROM 3 and RET on the keyboard itself, but
+    only when BASIC is waiting at its prompt (it does nothing while a program runs). There is also a menu option "Type ROM 3
+    when a disc is mounted", which does it for you as soon as you have chosen the disc; it is Off by default because USER
+    COPY, USER FORMAT and USER SYSCOPY ask for a disc to be mounted while they wait for a key in the same way as the
+    prompt does, and the typed keys would answer their prompts. Use the option only when you are changing a disc at the
+    BASIC prompt. Tested with the real OS and BASIC ROMs in logic simulation (it types ROM 3 once, when asked, and the OS then
+    selects ROM 3).
+  - Bdos Err On A: R/O   the disc is write protected (an image the SD card holds read only, or the state after
+    USER ERA "*.*"). Press CTRL-C, type ROM 3 and try again.
+  - DISC ERROR   no disc is mounted, or the image does not carry the system (section 5.1). Mount a system disc
+    or a disc made with make_blank_disc.py and type ROM 3.
+  - No space   the disc is full. USER STAT shows what is left; erase files or use another disc.
+  - No File   the name is not on the disc (or the disc is empty).
+
+5.7 Moving a program from tape to disc
+
+  A BASIC program on a tape (.mtx):
+    1. Mount the disc as Disc A, type ROM 3. Insert Tape -> the program's .mtx.
+    2. Type   LOAD ""   (tape loading still works with ROM 3). If the program starts by itself, press BREAK.
+    3. Type   USER SAVE "NAME.BAS"   and USER DIR to see it.
+  Programs that load extra machine code blocks from tape, as games do, need the blocks saved with USER WRITE
+  and read back with USER READ. One thing to watch: with the SDX fitted, its disc operating system sits in RAM
+  from about D400 to EC00 (BDOS at D700, BIOS at E500, buffers above). Code that must live in that range cannot
+  be read from disc straight to its place; read it lower down first and move it up after the last disc access.
+
+5.8 What is not included
+
+  - Disc B in BASIC. The SDX BASIC is a single disc system (the manual's title is "Single Disc BASIC"). In
+    testing, a B: in front of a file name did not select disc B: the file went to disc A. A second drive was for
+    the CP/M mode, which needs the 80 column board; the core has the Disc B entry, but BASIC does not use it.
+  - The FDX (its own controller with DMA, ports 40h to 47h), the silicon disc, the CP/M boot ROM mode and the
+    80 column board.
+
+------------------------------------------------------------------------------------------------
+6. THE CLOCK, MEMORY, ROM 2, THE SERIAL PORT AND THE 80 COLUMN BOARD
+
+6.1 The clock and the sound
+
+  The CPU of the MTX runs from a 4MHz crystal, and the sound chip, the CTC timer and the CTC counter that sets the baud
+  rate of the serial port all run from the same crystal. The core now does the same: the stock CPU clock is exactly 4.000MHz
+  on average (it is made from the 50MHz clock as cycles alternately 12 and 13 clocks long, which the Z80 does not mind),
+  the CTC timer input is 250kHz and the CTC counter input is 4MHz/13, all exact. Earlier builds ran the CPU at 4.166MHz,
+  4.15% fast; that made every sound 4% sharp and anything timed by the CTC 4% off. The CPU speed entry of the menu now says
+  4MHz (stock); the other speeds (5, 6.25, 8.33MHz) are as before.
+
+  The sound chip was checked against the SN76489A data sheet in appendix 7 of the operator's manual and Memotech's sound chip
+  notes (which give the reference clock as exactly 4,000,000 Hz and the frequency as 4MHz / (32 x n)):
+    - tones: the frequency is right (n = 100 gives 1250 Hz, to the clock cycle);
+    - volume: 2dB steps, 15 is off (was right);
+    - noise: the shift register now shifts at N/512, N/1024 and N/2048 (128, 256 and 512 microseconds), or at the rate of
+      tone 3; before it ran twice too fast;
+    - the register address of the first byte is latched, so a data byte after a volume or noise byte goes to that register
+      (it went to the tone frequency).
+  These were tested in logic simulation against the data sheet's figures.
+  (The operator's manual's own noise table gives 2604 Hz for the third rate; the data sheet printed in the same manual says
+  N/2048 = 1953 Hz, which is what the core does.)
+
+6.2 RAM: 64K or 320K
+
+  OSD -> RAM: 64K (stock) or 320K (SDRAM). With 320K the core has the 256KB of two RAM expansion boards: sixteen blocks of 16KB, a to
+  p, which appear at 4000-BFFF through the RAM pages P = 1 to 15 of the page port (OUT (0)) exactly as MEMU's documentation
+  describes them (they follow pages 246 and 247 of the operator's manual):
+      RELCPMH = 0 (ROM mode):   4000-7FFF  P = 0 gamma, else block 2P-1       8000-BFFF  P = 0 beta, P = 1 delta, else block 2P-2
+      RELCPMH = 1 (all RAM):    0000-3FFF  P = 0 delta, else block 3P-2       4000-7FFF  P = 0 gamma, else block 3P-1
+                                8000-BFFF  P = 0 beta, else block 3P
+  (a, b, c ... are blocks 1, 2, 3 ...; a block above 16 does not exist and reads FF.) The default is the stock 64K. Every
+  window of every page was tested in both modes in logic simulation. Software that looks for extra RAM pages will find them.
+  The check in the Memotech Memory Extensions booklet is: after a reset, PRINT PEEK
+  (64122) shows 1 on a plain MTX512 and one more for every 32K added (2, 3 and 5 for 32K, 64K and 128K). With 64K (stock) the
+  real OS, running in logic simulation with the SDRAM modelled, printed 1; with 320K it printed 9, which is the 256KB added.
+  The core stops at 320K: the full 512KB of the largest MTX is not built.
+
+  Where the expansion RAM is. The 256KB is in the MiSTer's SDRAM module, not inside the FPGA, so 320K needs that module in the
+  MiSTer (the usual 32MB or larger SDRAM board). With 64K (stock) the SDRAM is not used at all. With 320K and no SDRAM module
+  fitted there is nothing behind the expansion RAM: reads give junk and the machine does not stop.
+  The SDRAM is slower than the MTX's own RAM, so the core holds the Z80 for extra clock cycles (wait states) when it has to.
+  At the stock 4MHz this does not happen in normal use: in logic simulation 61000 expansion RAM cycles, with refreshes going
+  on, needed none. At the turbo speeds each access to the expansion RAM waits (about 4 cycles at 25MHz, about 1 at 6MHz),
+  so a program that runs from the expansion RAM runs slower than the CPU Speed setting says. Memory outside the expansion
+  RAM is not slowed. For the first 100 microseconds after the core starts the SDRAM is being set up and the Z80 waits if it
+  touches the expansion RAM.
+  The controller (rtl/sdram.sv) is the one from the MiSTer-devel ZX-Spectrum_MiSTer core (by Sorgelig, GPL), changed for the 50MHz
+  clock. It was
+  tested in logic simulation against a model of the chip that checks the start-up order, the command timing and the refresh
+  interval, with random and sequential reads and writes at three bus speeds.
+
+6.3 ROM 2 and a longer boot.rom
+
+  boot.rom may be longer than 32KB: up to 64KB. The core reads it as eight sections of 8KB, in this order: the OS, BASIC
+  (ROM 0), ASSEM (ROM 1), the SDX ROM, and then up to four sub-pages of ROM 2. The original ROM card had four 8K ROMs in ROM
+  slot 2 and chose between them (the sub-page) when a byte was written to 0000-1FFF with the OS ROM showing; the core does
+  the same. HiSoft Pascal is two ROMs, in sub-pages 0 and 1. In BASIC type ROM 2 to start a ROM in slot 2 (as ROM 3 starts the
+  SDX).
+
+  The simplest way to use a ROM for ROM 2 is the OSD entry Load ROM 2. Pick the file (.rom or .bin, up to 32KB). It goes into
+  the ROM 2 sub-pages from sub-page 0, 8KB for each: HiSoft Pascal, which is two 8K chips, is one 16KB file of chip 0 followed
+  by chip 1. A new file replaces the old ROM 2 completely. The machine restarts when the file has loaded and shows the ordinary
+  BASIC prompt: the ROM does not start by itself, you type  ROM 2  and RET.
+  The ROM is not kept: after the core is loaded again, load the file again, or put the ROM in boot.rom as below, to have it
+  every time. Tested in logic simulation: where each kind of file lands in the ROM memory and which sub-pages it fills.
+
+  tools/make_boot_rom.py builds such a file from your own ROM files:
+
+      python make_boot_rom.py boot.rom --os os.rom --basic basic.rom --assem assem.rom --rom2 pascal0.rom pascal1.rom
+
+  A ROM you leave out is filled with FF bytes. The SDX card is switched on only when the 8K in the fourth section starts with
+  the MTX ROM signature (08 07 06 05 04 03 02 01), so a boot.rom with ROM 2 and no SDX ROM leaves the SDX off. The slots 4, 6
+  and 7 (for instance the NODE ROM) are not built: the ROM memory of the core is eight 8K pages in all.
+  Tested in logic simulation with the real OS and BASIC, typing ROM 2 on the keyboard: a sub-page that was loaded answers, one
+  that was not reads FF; HiSoft Pascal version 1.1 and version 1.4 (two 8K ROMs each, in sub-pages 0 and 1) start and show their
+  banner and the Table? prompt.
+
+6.4 The serial port (the Communications board)
+
+  The FDX and HDX needed the Communications board in the MTX: a Z80 DART with two RS232 channels on ports 0C (data A), 0D
+  (data B), 0E (control A) and 0F (control B), the baud rate coming from the CTC (channels 1 and 2). The core has a DART (from
+  Andy Key's REMEMOTECH, which it was taken from). OSD -> Serial (DART) on the UART: Off, Channel A or Channel B connects
+  that channel to the MiSTer's UART. What the UART is connected to is set in the MiSTer's own settings (for instance a USB
+  serial adapter), not in the core.
+
+  It is an approximation of the DART: 8 bit characters only, no modem control lines, no interrupts, up to about 19200 baud.
+  It is enough for a program that polls it, for example a terminal program or a printer driver; it is not enough for the
+  Node/Ring network. Tested in logic simulation: both channels, with the transmit line looped back to the receive line:
+  the five test bytes came back on each channel, and the bit time on the line was 52.0 microseconds, that is 19230.8 baud
+  (4MHz/13/16), as it should be.
+
+6.5 The 80 column board and CP/M
+
+  The Memotech 80 column board (part of the FDX, and sold with the SDX for CP/M) gives an 80 x 24 text screen with colours and
+  block graphics. CP/M on the MTX needs it: the CP/M system disc writes to it, not to the video chip. The core has the board,
+  written from the board's schematic and the MTX-FDX Technical Manual (chapters 1 and 3), and runs CP/M 2.2 from the SDX
+  controller with Memotech's own CP/M bootstrap PROM. The FDX's own controller (FDCX1 with DMA) is not built: CP/M does not need
+  it on the SDX.
+
+  What you need (all of it yours; nothing here is supplied with the core):
+    - the core's usual boot.rom, boot1.rom and boot2.rom (OS, BASIC, ASSEM), and the SDX ROM if you want SDX BASIC as well
+    - the SDX CP/M bootstrap PROM, 8192 bytes: it prints "MTX Bootstrap Prom #@SDX01-V03" (the file SDX_98E7.BIN on Primrosebank's
+      ROM page; MD5 of the copy used in testing a81c3a0dedec0bd70f0cfd521344300b)
+    - the 80 column board's character ROM, 8192 bytes: the graphics ROM then the alpha ROM (80char_0743.hex on the same page: a
+      HEX file, which tools/make_boot3_rom.py reads as it is; MD5 of the binary 13889c76c64099b32ce7ff65686587aa)
+    - a CP/M system disc as an SDX disc image (.mfl or .dsk). A 640K type 07 system disc (MD5 a60616fa006ee0dc6ee52ea4c01609e0
+      for the one used in testing, MEMU's andy_sys.mfloppy) boots: it loads "MTX 59K Memotech Bios: 03-Apr-84". Discs made with
+      USER FORMAT/SYSCOPY (section 5.3) are SDX discs, not CP/M discs.
+
+  Step by step
+    1. Make boot3.rom from the three ROMs:
+           python make_boot3_rom.py boot3.rom --sdx sdx.rom --font 80char_0743.hex --prom SDX_98E7.BIN
+       (24576 bytes: the SDX ROM, the character ROM, the CP/M PROM.) Copy it to games/MTX512/ in place of the ordinary boot3.rom.
+       The core keeps all three on-chip: the SDX ROM in the SDX slot, the PROM in a page of its own, the character ROM in the
+       board's. The 80 column board is fitted when the character ROM has arrived. Without --sdx the tool uses the PROM in both
+       places (then there is no SDX BASIC). The OSD entry CP/M: Load 80 col char ROM loads the character ROM from a file (8192 bytes,
+       binary) without a new boot3.rom.
+       Without Python: on Windows, tools\make_boot3_rom.bat sdx.rom font.bin prom.rom (three binary files of 8192 bytes, in that
+       order); on the MiSTer, put the three binary files in games/MTX512/boot3_parts/ as sdx.rom, font.bin and prom.rom and run
+       Scripts -> MTX512_make_boot3 (copy Scripts/MTX512_make_boot3.sh to the card's Scripts folder), then load the core again.
+       The font as a HEX file (the download) needs make_boot3_rom.py, or a conversion to binary first.
+    2. Start the core. Mount the CP/M disc with OSD -> SDX Disc A.
+    3. OSD -> CP/M: Disc ROM -> CP/M, then OSD -> Reset (the machine does not restart by itself). The PROM starts CP/M from disc A
+       (there is no BASIC prompt). The PROM needs the disc: I have not looked at what it shows without one.
+    4. The screen changes to the 80 column board when the PROM first sets it up. OSD -> CP/M: Video output is Auto (the VDP screen
+       until the board is set up, then the 80 column one); VDP or 80 column force one of them.
+    5. The PROM shows  Ram Test - OK  and  Boot B07, the BIOS loads, and CP/M gives the prompt A>. DIR lists the files, a
+       program name runs it, B: changes drive. A second disc goes in OSD -> SDX Disc B.
+  To go back to BASIC and the SDX tools: OSD -> CP/M: Disc ROM -> SDX BASIC and OSD -> Reset, then ROM 3 as usual. Only one of
+  the two ROMs is in the SDX slot at a time (ROM 3, or ROM 5 with OSD -> SDX: ROM slot); the CP/M PROM does not need the SDX ROM, it
+  has its own disc handler, and CP/M discs load with it alone.
+
+  How to use CP/M once it is running, including FDXB (Disc BASIC), is in section 6.6.
+
+  What was checked: in logic simulation of the core, with the real OS, the real CP/M PROM, the character ROM and the 640K system
+  disc as the disc image, the machine started CP/M by itself, the BIOS programmed the board and filled the screen, and the
+  picture the board made (read back from its video output, character by character with the character ROM) showed "MTX Bootstrap
+  Prom", "Ram Test - OK", "Boot B07", "MTX 59K Memotech Bios: 03-Apr-84", "A>CONFIG" and its report ("B: is type 07 - 640Kb
+  Floppy disc D/S D/D 80 track"), in the colours the BIOS chose, with every scan line shown twice. Typing at the A> prompt was
+  checked only in the software model (the same PROM and disc): a command typed on the keyboard reached CP/M, which answered it.
+  Running CP/M programs has not been tried, and none of it has been tried on a real MiSTer.
+
+  How the board works here, and where it differs from the real board
+    - ports 30h to 33h (the screen memory through four latches), 38h and 39h (the 6845 CRTC) are decoded as the manual says; the
+      screen memory is two 2K x 8 RAMs, ASCII byte and attribute byte for each cell. Attribute: bits 0 to 2 red, green, blue
+      foreground, bits 3 to 5 the background, bit 6 blink, bit 7 graphics (the graphics character ROM). The cursor and the blink
+      are shown as the board does, but their exact rates and the cursor's look are taken from the manual's description, not from a
+      real board.
+    - the real board scans at 15.6kHz. The core makes a 640 x 480 picture (50Hz or 60Hz as OSD -> Video Hz says, 4:3) from the same
+      screen memory, each scan line twice. The CRTC registers that say how the screen is built are used (characters and rows
+      displayed, scan lines per row, cursor shape and address, start address); the 15.6kHz timing registers are stored and read
+      back, but do not change the picture.
+    - not built: the monochrome output, the bell on port 30h (it is read, and makes no sound), the light pen.
+    - the FDX controller (ports 40h to 47h, DMA) and the FDX boot PROM, and the silicon disc, are not built.
+
+6.6 Using CP/M, step by step
+
+  This section is for somebody who has never used CP/M. Section 6.5 says what you need and how the board works; this one says what
+  to press. Everything here was tried in the software model (the real CP/M PROM, the real CP/M system disc, FDXB.COM) and the main
+  parts have also been run on a MiSTer; where something was not seen working it says so.
+
+  6.6.1 Starting CP/M, the whole routine
+    1. boot3.rom on the card is the 24576 byte file of 6.5 (SDX ROM, character ROM, CP/M PROM). Load the core.
+    2. OSD -> SDX Disc A -> pick a CP/M system disc (for example andy_sys.mfl). A disc made with the SDX USER FORMAT is an SDX disc,
+       NOT a CP/M disc: CP/M needs a CP/M system disc.
+    3. OSD -> CP/M: Disc ROM -> CP/M.
+    4. OSD -> Reset. (Changing Disc ROM does not restart the machine by itself: you press Reset.)
+    5. The screen turns to the 80 column picture and shows, one after the other,
+           MTX Bootstrap Prom #@SDX01-V03 / Ram Test - OK / Boot B07 / MTX 59K Memotech Bios: 03-Apr-84 / A>CONFIG and a short report
+       and then the prompt  A>  with a blinking block cursor. That is CP/M, waiting for a command. It takes a few seconds.
+    There is no BASIC prompt in CP/M: typing BASIC words (PRINT, ROM 3) at A> only gets an error such as  ROM?  .
+    To go back to MTX BASIC and the SDX: OSD -> CP/M: Disc ROM -> SDX BASIC, then OSD -> Reset.
+
+  6.6.2 The A> prompt
+    A> means "drive A is the current drive". Type a command and press RET. Commands are not case sensitive.
+      DIR              list the files on the current drive (names are shown as BAUD COM, i.e. BAUD.COM)
+      DIR B:           list drive B
+      B:               make B the current drive (the prompt becomes B>); A: goes back
+      TYPE NAME.TXT    show a text file on the screen
+      ERA NAME.EXT     erase a file (ERA *.BAK erases every .BAK file)
+      REN NEW.EXT=OLD.EXT   rename a file (the new name first)
+      STAT             how much room is left on the disc;  STAT NAME.EXT  gives the size of a file
+      PIP B:=A:NAME.EXT     copy a file from A: to B: (PIP is a program on the system disc)
+      CONFIG           the report the BIOS prints at start-up: which drives exist and what they are
+    The words DIR, ERA, REN, TYPE (and SAVE, USER) are part of CP/M itself. Anything else you type is the NAME OF A PROGRAM on the disc
+    (see 6.6.3); if there is no such file CP/M answers with the name and a question mark, for example  FXDB?  .
+    Drive letters: with one disc mounted, the BIOS says "Drive A: mapped to ...... B:", so in the tests A: and B: both show Disc A.
+    I have not confirmed which letter OSD -> SDX Disc B gets: mount it and run CONFIG, which lists the drives.
+    After changing a disc from the OSD, press Ctrl+C at the prompt (CP/M's way of noticing a new disc) before using it. (That is
+    standard CP/M; I have not tried it on the core.)
+
+  6.6.3 Running a program
+    A file whose name ends in .COM is a CP/M program: type its name without .COM and press RET. For example  STAT  ,  PIP  ,  CONFIG  ,
+    or a game such as  ASTROPAC  or  ORBCPM  from MEMU's games disc (games.mfl; not tried). Files ending in .BAS, .RUN, .PRG or .BIN
+    are not run by typing their name: .BAS programs are loaded from Disc BASIC (6.6.4).
+
+  6.6.4 FDXB: MTX BASIC under CP/M ("Disc BASIC")
+    FDXB.COM is MTX BASIC with disc commands, as a CP/M program. It is NOT started by typing BASIC or ROM 3.
+      At A> type   FDXB   and press RET. The screen clears and shows   Ready   : you are in BASIC now.
+    Disc BASIC is the ordinary MTX BASIC (the LET and GOTO words are optional) with a few extra commands, all of which start with the
+    word DISC. This is the part that is not obvious: a plain  LOAD  or  SAVE  is the cassette command and waits for a tape for ever
+    (the machine looks as if it has hung). Use the DISC forms:
+      DISC LOAD "NAME.BAS"        load a program from the disc (file names are CP/M names; BASIC programs use the extension .BAS)
+      DISC SAVE "NAME.BAS"        save the program in memory to the disc (an existing file of that name is overwritten)
+      DISC OPEN #1,"DATA.DAT","O"   open a data file for output ("I" input, "R" random); the data file commands are in the manual
+    then  RUN  and RET to start a loaded program, and  LIST  to see it. The quotation mark is Shift+2 on the PC keyboard. A program
+    that is already in memory is lost when you DISC LOAD another.
+    How to leave FDXB: MTX.COM (also on the CP/M system disc) turns the machine back into an MTX512 with the normal BASIC; to get back
+    to the A> prompt press OSD -> Reset (CP/M starts again from the disc). I have not found a command in FDXB that returns to A> directly.
+    More in the Memotech manual "80 Column Disc Basic FDXB.COM" (in the FDX operator's manual, which Primrosebank has).
+    Example, Snowball (the Level 9 adventure on MEMU's snowball disc, snowball.mfl):
+      mount snowball.mfl as Disc A, CP/M: Disc ROM -> CP/M, Reset;  at A>  FDXB  RET;  then   DISC LOAD "SNOWBALL.BAS"  RET   (the disc
+      is read for a few seconds), then   RUN  RET.  The game asks   What now?   ; type English commands such as  LOOK AROUND  RET.
+      (BackSpace: see 6.6.6.)  This is how it was run on a MiSTer.
+
+  6.6.5 Which screen? (80 column or the normal picture)
+    There are two pictures: the 80 column board's, and the normal MTX video chip (VDP) picture. OSD -> CP/M: Video output chooses:
+      Auto        the normal picture until a program sets the 80 column board up (the CP/M start does at once), then the 80 column one
+      VDP         always the normal picture            80 column     always the 80 column picture
+    CP/M itself and  FDXB  use the 80 column screen. A program that draws graphics or plays a game on the normal video chip (many MTX
+    BASIC games) shows nothing on the 80 column screen: the screen looks BLACK (or still shows the CP/M text) while the program runs.
+    This is what happened when loading TOADO.BAS from the snowball disc. Two things to do for such programs:
+      - start Disc BASIC with the 40 column form   FDXB 40   RET   : it prints on the normal picture instead of the 80 column board
+      - and set OSD -> CP/M: Video output -> VDP (Auto stays on the 80 column screen once CP/M has started)
+    Go back to Auto or 80 column for the A> prompt and ordinary CP/M programs.
+    (TOADO.BAS on the snowball disc: LIST shows machine code instructions, not BASIC lines, so it is probably not an ordinary BASIC
+    program; I do not know how it was meant to be started.)
+
+  6.6.6 The keyboard in CP/M
+    - A colon is Shift+; on the PC keyboard (so B: can be typed). The # key is a colon too.
+    - Quotation mark: Shift+2. Letters are lower case unless Shift or Caps Lock is on; CP/M does not mind the case.
+    - BackSpace: at the A> prompt it erases the character to the left. In FDXB it only moves the cursor to the left (that is the MTX
+      editor): press BackSpace and then the Delete key to erase the character. (There is no key shaping: each key goes to the machine as
+      you press it.)
+    - Ctrl is the PC Ctrl key: Ctrl+C is CP/M's "abort / new disc" key.
+    - The joysticks of the MTX are wired into the keyboard in the real machine, and so they are here: if a key types twice or types
+      the wrong thing, a joystick or a MiSTer input mapping that makes a keyboard key a joystick press can be the cause. OSD ->
+      Joysticks -> Off shows whether it is; the cure is in section 9.
+
+  6.6.7 If something does not work
+    Black screen after Reset                  the boot3.rom is the 8192 byte one (see 6.5: the file must be 24576 bytes), or no CP/M disc
+                                              is mounted as Disc A, or OSD -> CP/M: Video output is on VDP: try 80 column.
+    The BASIC screen stays, no CP/M           OSD -> CP/M: Disc ROM is still SDX BASIC, or you did not press Reset after changing it.
+    FXDB? / FDXB?                             a misspelt name (it is F, D, X, B), or FDXB.COM is not on this disc (DIR shows the files;
+                                              games.mfl has no FDXB.COM, andy_sys.mfl and snowball.mfl have).
+    After typing LOAD "NAME" nothing happens  you used the cassette command: use DISC LOAD "NAME.BAS".
+    A game runs but the screen is black       it draws on the normal video chip: FDXB 40 and OSD -> CP/M: Video output -> VDP (6.6.5).
+    A key types twice                         see 6.6.6 and section 9 (a joystick mapping).
+
+------------------------------------------------------------------------------------------------
+7. THE KEYBOARD
+
+  The MTX keyboard has three blocks: the main keys (like a typewriter, plus ESC, CTRL, ALPHA LOCK and LINE FEED), the EDITOR and
+  NUMERIC keypad on the right, and the eight function keys F1 to F8 (with SHIFT each gives a second function: 16 in all). The
+  core takes a PC keyboard (UK layout). This is how the keys line up.
+
+  7.1 The editor keypad: the PC number pad, one row higher
+
+  The MTX keypad (operator's manual, pages 6 to 8) is, with the key names printed under the numbers (left) and the PC key
+  that does the same (right):
+
+          7 PAGE     8 EOL      9 BRK          Num Lock           Num /        Num *      (the PC top row of the pad)
+          4 TAB      5 up       6 DEL            Num 7              Num 8        Num 9
+          1 left     2 HOME     3 right          Num 4              Num 5        Num 6
+          0 INS      . down     ENT CLS          Num 1              Num 2        Num 3
+
+  The names are what each key does on its own; the numbers (and ENT) are what it gives with Shift held, which makes the pad a
+  number pad (manual, appendix 4). The picture of the keyboard is on page 8 of the operator's manual.
+
+  The core puts the MTX keypad on the PC number pad but one row up, so that the MTX top row sits on the PC row with Num Lock,
+  Num / and Num *. Read the two blocks above as the same shape:
+
+      MTX key          PC key
+      BRK (break)      Num *           (the key at the top right of the pad, where the MTX has 9 / BRK); also Pause, Ctrl+Pause, Scroll Lock
+      EOL              Num /           also End
+      PAGE             Num Lock        also Page Up
+      TAB              Num 7           also Tab
+      up               Num 8           also the Up arrow
+      DEL              Num 9           also Delete
+      left             Num 4           also the Left arrow
+      HOME             Num 5           also Home, Left Alt, Right Alt
+      right            Num 6           also the Right arrow
+      INS              Num 1           also Insert
+      down             Num 2           also the Down arrow
+      CLS              Num 3           also Page Down   (with Shift this key is the pad's ENT)
+
+  Num 0 and Num . do nothing. The Num Lock light makes no difference.
+
+  7.2 Break
+
+  BRK stops a BASIC program and returns to Ready; it also stops a printer that is waiting (manual, the keypad description and the printer section). On a modern
+  PC keyboard it is Num * (top right of the number pad), or the Pause/Break key, or Ctrl+Pause, or Scroll Lock (which is next to
+  Pause, for a keyboard without a number pad). Pause sends a press and no release, so the core holds BRK for a tenth of a
+  second. A keyboard with none of these cannot send BRK in this version. The Esc key is the MTX ESC key (the same as on the MTX), not BRK.
+  One more point from the manual (appendix 4): a program can switch the Break key off, or lock the pad to numbers, with the
+  Interrupt flags and keyboard flags; then BRK does not stop the program.
+
+  7.3 Insert, delete and the other editing keys
+
+  This is how the MTX editor works (operator's manual, pages 6 and 7). It is the ROM that does it, the core only sends the key:
+      INS      switches insert mode on. Type, and the text to the right moves along to make room. Insert mode stays on until you
+               press INS again to switch it off. (In the assembler the word Insert on the screen is a different thing: see its
+               own chapter.)
+      DEL      deletes the character under the cursor and closes the gap.
+      EOL      deletes from the cursor to the end of the line. In BASIC the four screen lines of an edit are one line, so it
+               deletes everything after the cursor.
+      CLS      clears the screen being edited. It is easy to hit by mistake. (With Shift the same key is the pad's ENT.)
+      left/right/up/down move the cursor (up and down do nothing in a BASIC line edit, which is one line).
+      TAB      moves the cursor eight characters to the right.
+      HOME     takes the cursor to the start of the screen being edited.
+      PAGE     stops a listing; it also switches between page and scroll modes.
+  Backspace is not an MTX key. The MTX BS key only moves the cursor left; the PC Backspace is made to remove the character to
+  the left (the core presses BS and then DEL for you). Shift+Backspace is the plain MTX BS key.
+
+  7.4 The main keys
+
+      ESC            Esc                 CTRL          Left or Right Ctrl      ALPHA LOCK   Caps Lock
+      RET            Enter               shift keys    Left and Right Shift    F1 to F8     F1 to F8 (Shift gives the second set)
+      LINE FEED      no PC key is mapped to it in this version
+      Some symbols are in other places on an MTX keyboard than on a PC one. The core keeps what you read on the PC keycaps in a
+      few cases and what the MTX types in others: on the PC type ^ for = and = for ^, ' for @ and @ for ', # for :, and the
+      key at the left of Z (\ |) is the MTX \ | key. (This is the same mapping as MEMU.)
+
+------------------------------------------------------------------------------------------------
+8. IF SOMETHING DOES NOT WORK
+
+  Blank screen at start-up      boot.rom or boot1.rom is missing or the wrong size (8192 bytes each).
+  LOAD "" says "Found:" and then nothing
+                                the file is short, or it is not a tape; try the .wav of the game.
+  SAVE seems to do nothing      the save tape must be mounted (Mount Save Tape) and be exactly 65536 bytes, and
+                                a .mtx must also be inserted (Insert Tape).
+  VERIFY says Mismatch          type RUN first (section 4); then VERIFY again.
+  ROM 3 does nothing / error    boot3.rom is missing, or the OSD ROM slot and the command do not match: slot ROM 3
+                                needs the command ROM 3, slot ROM 5 needs ROM 5 (the screen fills with junk if they differ: Reset).
+  DISC ERROR                    see 5.6.
+  The old disc's directory, or Bdos Err On A: R/O, after mounting another disc
+                                type ROM 3, or OSD -> SDX: Type ROM 3 now (5.6).
+  The text on the screen goes wrong after an error
+                                press Reset, or type ROM 3 again.
+  A key types twice, or the wrong thing (found in CP/M, where the first S came twice)
+                                the MiSTer may have the keyboard mapped as a joystick for this core: the joysticks are wired into the
+                                keyboard matrix, as on the real MTX, so a joystick press and the key press arrive together. Try
+                                OSD -> Joysticks -> Off: if the trouble goes, delete the saved input mappings of the core,
+                                /media/fat/config/inputs/MTX512_input_*.map (or use the MiSTer's Define joystick buttons), and
+                                switch Joysticks back On.

@@ -117,8 +117,12 @@ begin
           reset_channel(ch) <= '0';
           konstant(ch)      <= data_write;
             -- constant of 0 is treated as 256
-            -- the counter is not reloaded,
-            -- nor is the prescaler
+            -- the counter is loaded from the time constant as it is written. (The Z80 CTC data sheet says a running
+            -- channel finishes its count first; MEMU's author found the loading behaviour matches the real hardware, and
+            -- without it a counter set to 1 interrupts only after 256 input pulses: five seconds per VDP frame for
+            -- the Speculator program, which resets channel 0 and writes C5 and 1 on every frame. The prescaler is not
+            -- reloaded.)
+          counter(ch) <= data_write;
 
           -- enable PANEL hack
           if ch = 2 and 
@@ -137,6 +141,11 @@ begin
           prescaler_256(ch) <= data_write(5);
           konstant_load(ch) <= data_write(2);
           reset_channel(ch) <= data_write(1);
+          if data_write(1) = '1' then
+            -- a software reset also clears the channel's pending interrupt (MEMU: "there is code out there that doesn't always
+            -- end interrupt routines with RETI"; the Speculator program resets every channel before it enables the NMI)
+            pending(ch) <= '0';
+          end if;
             -- The Zilog CTC manual says that reset channel is set
             -- the bits in the control register are not changed,
             -- but we have changed them. Oops!
@@ -179,6 +188,8 @@ begin
             pending(2) <= '0';
           when "11" =>
             pending(3) <= '0';
+          when others =>
+            null;
         end case;
       end if;
       re_vector_old <= re_vector;
